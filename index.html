@@ -3,106 +3,117 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>ЧизЛайв Заказ</title>
-  <style>
-    body {
-      font-family: sans-serif;
-      background: #fff4f2;
-      margin: 0;
-      padding: 20px;
+  <title>ЧизЛайв</title>
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+    const supabase = createClient(
+      'http://45.91.8.96:54321',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0'
+    );
+
+    const cheesecakeContainer = document.getElementById('cheesecakes');
+    const totalElement = document.getElementById('total');
+    const orderBtn = document.getElementById('order-btn');
+
+    let cart = {};
+    const PRICE = 300;
+
+    async function loadCheesecakes() {
+      const { data, error } = await supabase.from('cheesecakes').select('*');
+      if (error) {
+        cheesecakeContainer.innerHTML = '<p>Ошибка загрузки данных.</p>';
+        return;
+      }
+
+      cheesecakeContainer.innerHTML = '';
+      data.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'cheesecake';
+        div.innerHTML = `
+          <h3>${item.name}</h3>
+          <p>${item.description}</p>
+          <p><strong>₽${PRICE}</strong></p>
+          <button onclick="addToCart('${item.id}', '${item.name}')">Добавить</button>
+        `;
+        cheesecakeContainer.appendChild(div);
+      });
     }
-    h2 { text-align: center; }
-    .cake { margin: 10px 0; padding: 10px; background: #fff; border-radius: 10px; box-shadow: 0 0 5px rgba(0,0,0,0.1); }
-    .title { font-weight: bold; margin-bottom: 5px; }
-    .controls { display: flex; justify-content: space-between; align-items: center; }
-    button { padding: 5px 10px; font-size: 16px; }
-    #total { text-align: center; margin-top: 20px; font-size: 18px; font-weight: bold; }
-    #submit { width: 100%; padding: 10px; font-size: 18px; background: #ff6b6b; color: white; border: none; border-radius: 8px; margin-top: 20px; }
-  </style>
-</head>
-<body>
-  <h2>Сделай заказ</h2>
 
-  <div class="cake" data-name="Вершина" data-count="0">
-    <div class="title">Вершина (Классический)</div>
-    <div class="controls">
-      <button onclick="changeCount(this, -1)">−</button>
-      <span class="count">0</span>
-      <button onclick="changeCount(this, 1)">+</button>
-    </div>
-  </div>
-
-  <div class="cake" data-name="Лава 29" data-count="0">
-    <div class="title">Лава 29 (Шоколадный)</div>
-    <div class="controls">
-      <button onclick="changeCount(this, -1)">−</button>
-      <span class="count">0</span>
-      <button onclick="changeCount(this, 1)">+</button>
-    </div>
-  </div>
-
-  <div class="cake" data-name="Яркий закат" data-count="0">
-    <div class="title">Яркий закат (Манговый)</div>
-    <div class="controls">
-      <button onclick="changeCount(this, -1)">−</button>
-      <span class="count">0</span>
-      <button onclick="changeCount(this, 1)">+</button>
-    </div>
-  </div>
-
-  <div class="cake" data-name="Вкус лета" data-count="0">
-    <div class="title">Вкус лета (Малиновый)</div>
-    <div class="controls">
-      <button onclick="changeCount(this, -1)">−</button>
-      <span class="count">0</span>
-      <button onclick="changeCount(this, 1)">+</button>
-    </div>
-  </div>
-
-  <div id="total">Сумма: 0 ₽</div>
-  <button id="submit" onclick="submitOrder()">Оформить заказ</button>
-
-  <script>
-    const price = 300;
-
-    function changeCount(button, delta) {
-      const parent = button.closest('.cake');
-      const countSpan = parent.querySelector('.count');
-      let count = parseInt(countSpan.textContent);
-      count = Math.max(0, count + delta);
-      countSpan.textContent = count;
-      parent.dataset.count = count;
+    window.addToCart = function (id, name) {
+      if (!cart[id]) cart[id] = { name, count: 0 };
+      cart[id].count += 1;
       updateTotal();
     }
 
     function updateTotal() {
-      let total = 0;
-      document.querySelectorAll('.cake').forEach(el => {
-        total += parseInt(el.dataset.count) * price;
-      });
-      document.getElementById('total').textContent = 'Сумма: ' + total + ' ₽';
-    }
-
-    function submitOrder() {
-      const order = [];
-      document.querySelectorAll('.cake').forEach(el => {
-        const name = el.dataset.name;
-        const count = parseInt(el.dataset.count);
-        if (count > 0) {
-          order.push(`${name}: ${count} шт`);
-        }
-      });
-
-      const total = document.getElementById('total').textContent;
-      const message = order.join('\n') + '\n' + total;
-
-      if (window.Telegram.WebApp) {
-        Telegram.WebApp.sendData(message);
-        Telegram.WebApp.close();
-      } else {
-        alert("Telegram Web App не поддерживается");
+      let sum = 0;
+      for (const id in cart) {
+        sum += cart[id].count * PRICE;
       }
+      totalElement.textContent = 'Сумма: ₽' + sum;
     }
+
+    orderBtn.addEventListener('click', async () => {
+      const name = prompt("Введите ваше имя:");
+      const phone = prompt("Введите ваш телефон:");
+      if (!name || !phone) return alert("Имя и телефон обязательны");
+
+      const items = Object.values(cart).map(i => `${i.name} x${i.count}`).join(', ');
+      const total = Object.values(cart).reduce((sum, i) => sum + i.count * PRICE, 0);
+
+      const { error } = await supabase.from('orders').insert({
+        name, phone, items, total
+      });
+
+      if (error) {
+        alert("Ошибка при отправке заказа.");
+      } else {
+        alert("Заказ отправлен!");
+        cart = {};
+        updateTotal();
+      }
+    });
+
+    loadCheesecakes();
   </script>
+
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 600px;
+      margin: auto;
+      background: #fff8f2;
+      padding: 1rem;
+    }
+    h1 {
+      text-align: center;
+      color: #8b0000;
+    }
+    .cheesecake {
+      background: #fff;
+      margin-bottom: 1rem;
+      padding: 1rem;
+      border-radius: 10px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.1);
+    }
+    button {
+      padding: 0.5rem 1rem;
+      background: #ff7a5a;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #e96c4d;
+    }
+  </style>
+</head>
+<body>
+  <h1>🍰 ЧизЛайв</h1>
+  <div id="cheesecakes">Загрузка...</div>
+  <p id="total">Сумма: ₽0</p>
+  <button id="order-btn">Оформить заказ</button>
 </body>
 </html>
